@@ -1,30 +1,40 @@
 import asyncio
-import socket
 from typing import Any
 
 from .manipulator import Manipulator
 
 
-async def send_message_to_manipulator(message: Any = ""):
-    host = socket.gethostname()
-    port = 5000
+class EchoClientProtocol(asyncio.Protocol):
+    def __init__(self, message, on_con_lost):
+        self.message = message
+        self.on_con_lost = on_con_lost
 
-    client_socket = socket.socket()
-    client_socket.connect((host, port))
+    def connection_made(self, transport):
+        transport.write(self.message.encode())
+        Manipulator.add_log('Data sent: {!r}'.format(self.message))
 
-    while True:
-        try:
-            client_socket.send(message.encode())
-            data = client_socket.recv(1024).decode()
+    def data_received(self, data):
+        Manipulator.add_log('Data received: {!r}'.format(data.decode()))
 
-            await Manipulator.add_log('Received from server: ' + data)
-        except KeyboardInterrupt:
-            client_socket.close()
-            break
-        finally:
-            client_socket.close()
-            break
+    def connection_lost(self, exc):
+        Manipulator.add_log('The server closed the connection')
+        self.on_con_lost.set_result(True)
+
+
+async def send_signal_to_manipulator(message: Any = ""):
+    loop = asyncio.get_running_loop()
+
+    on_con_lost = loop.create_future()
+
+    transport, protocol = await loop.create_connection(
+        lambda: EchoClientProtocol(message, on_con_lost),
+        '127.0.0.1', 8888)
+
+    try:
+        await on_con_lost
+    finally:
+        transport.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(send_message_to_manipulator())
+    asyncio.run(send_signal_to_manipulator())

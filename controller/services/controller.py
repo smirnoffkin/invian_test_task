@@ -13,7 +13,7 @@ from controller.services.utils import (
     get_controller_status_by_payload,
     message_handling
 )
-from manipulator import send_message_to_manipulator
+from manipulator import send_signal_to_manipulator
 
 sys.path.append("..")
 
@@ -22,12 +22,11 @@ async def _create_new_controller(
     body: InputControllerRequest,
     db: AsyncSession
 ) -> Controller:
-    # TODO sort out the connection with the manipulator
-    # event_to_decide = asyncio.create_task(message_handling())
-    # if event_to_decide:
-    #     await send_message_to_manipulator(
-    #         f"Successfully added new controller: {body}"
-    #     )
+    event_to_decide = await asyncio.create_task(message_handling())
+    if event_to_decide:
+        await send_signal_to_manipulator(
+            f"Successfully get new controller: {body}"
+        )
 
     async with db.begin():
         status = await get_controller_status_by_payload(body.payload)

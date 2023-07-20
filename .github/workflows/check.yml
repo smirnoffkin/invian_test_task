@@ -20,6 +20,8 @@ jobs:
         run: make dev
       - name: Start Development tools
         run: make up-dev
+      - name: Start tcp-server
+        run: make up-tcp-server
       - name: Test with pytest
         run: |
           pip install pytest
