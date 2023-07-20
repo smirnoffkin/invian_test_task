@@ -1,5 +1,4 @@
 import asyncio
-import socket
 from logging import getLogger
 from typing import Any
 
@@ -8,28 +7,40 @@ logger = getLogger(__name__)
 
 class Manipulator:
     @staticmethod
-    async def add_log(event: Any):
+    def add_log(event: Any):
         logger.error(event)
 
 
-async def server_program():
-    host = socket.gethostname()
-    port = 5000
+class EchoServerProtocol(asyncio.Protocol):
+    def connection_made(self, transport):
+        peername = transport.get_extra_info('peername')
+        Manipulator.add_log('Connection from {}'.format(peername))
+        self.transport = transport
 
-    server_socket = socket.socket()
-    server_socket.bind((host, port))
+    def data_received(self, data):
+        message = data.decode()
+        Manipulator.add_log('Data received: {!r}'.format(message))
 
-    server_socket.listen(2)
-    await Manipulator.add_log(f"Successfully started tcp server on port :{port}")
+        Manipulator.add_log('Send: {!r}'.format(message))
+        self.transport.write(data)
 
-    conn, address = server_socket.accept()
-    await Manipulator.add_log("Connection from: " + str(address))
-    while True:
-        data = conn.recv(1024).decode()
-        if data:
-            await Manipulator.add_log("from connected user: " + str(data))
-            conn.send(data.encode())
+        Manipulator.add_log('Close the client socket')
+        self.transport.close()
+
+
+async def run_server():
+    loop = asyncio.get_running_loop()
+    host = '127.0.0.1'
+    port = 8888
+
+    server = await loop.create_server(
+        lambda: EchoServerProtocol(),
+        host, port
+    )
+
+    async with server:
+        await server.serve_forever()
 
 
 if __name__ == '__main__':
-    asyncio.run(server_program())
+    asyncio.run(run_server())

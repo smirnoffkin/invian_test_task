@@ -1,1 +1,1 @@
-from .tcp_client import send_message_to_manipulator
+from .tcp_client import send_signal_to_manipulator
